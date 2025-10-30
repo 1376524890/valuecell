@@ -68,6 +68,7 @@ class AutoTradingAgent(BaseAgent):
         try:
             # Parser agent for natural language query parsing
             # Uses centralized configuration system with automatic provider detection
+            # Supports multiple providers including DashScope, OpenAI, etc.
             from valuecell.utils.model import get_model
 
             parser_model = get_model(

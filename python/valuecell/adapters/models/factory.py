@@ -81,6 +81,88 @@ class ModelProvider(ABC):
         return bool(self.config.default_embedding_model)
 
 
+class DashScopeProvider(ModelProvider):
+    """DashScope model provider for Qwen series models"""
+
+    def create_model(self, model_id: Optional[str] = None, **kwargs):
+        """Create DashScope model via OpenAI-compatible API"""
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ImportError(
+                "openai package not installed. Install with: pip install openai"
+            )
+
+        # Use provided model_id or default
+        model_id = model_id or self.config.default_model
+
+        # Merge parameters: provider defaults < kwargs
+        params = {**self.config.parameters, **kwargs}
+
+        logger.info(f"Creating DashScope model: {model_id}")
+
+        # Return a lambda function that creates the completion when called
+        def model_func(messages, **call_kwargs):
+            client = OpenAI(
+                api_key=self.config.api_key,
+                base_url=self.config.base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+            
+            merged_kwargs = {**params, **call_kwargs}
+            return client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=merged_kwargs.get("temperature"),
+                max_tokens=merged_kwargs.get("max_tokens"),
+                top_p=merged_kwargs.get("top_p"),
+            )
+        
+        return model_func
+
+    def create_embedder(self, model_id: Optional[str] = None, **kwargs):
+        """Create embedder via DashScope (OpenAI-compatible)"""
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ImportError("openai package not installed. Install with: pip install openai")
+
+        # Use provided model_id or default embedding model
+        model_id = model_id or self.config.default_embedding_model
+
+        if not model_id:
+            raise ValueError(
+                f"No embedding model specified for provider '{self.config.name}'"
+            )
+
+        # Merge parameters: provider embedding defaults < kwargs
+        params = {**self.config.embedding_parameters, **kwargs}
+
+        logger.info(f"Creating DashScope embedder: {model_id}")
+
+        # Return a lambda function that creates embeddings when called
+        def embedder_func(texts, **call_kwargs):
+            client = OpenAI(
+                api_key=self.config.api_key,
+                base_url=self.config.base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+            
+            merged_kwargs = {**params, **call_kwargs}
+            if isinstance(texts, str):
+                texts = [texts]
+            
+            response = client.embeddings.create(
+                model=model_id,
+                input=texts,
+                dimensions=merged_kwargs.get("dimensions", 1536),
+                encoding_format=merged_kwargs.get("encoding_format", "float"),
+            )
+            
+            # Return list of embeddings
+            return [item.embedding for item in response.data]
+        
+        return embedder_func
+
+
 class OpenRouterProvider(ModelProvider):
     """OpenRouter model provider"""
 
@@ -269,6 +351,7 @@ class ModelFactory:
         "google": GoogleProvider,
         "azure": AzureProvider,
         "siliconflow": SiliconFlowProvider,
+        "dashscope": DashScopeProvider,
     }
 
     def __init__(self, config_manager: Optional[ConfigManager] = None):

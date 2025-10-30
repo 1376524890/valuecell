@@ -10,7 +10,17 @@ ValueCell uses a three-tier configuration system:
 
 ## Quick Start
 
-### Minimal Setup (OpenRouter Only)
+### Minimal Setup (DashScope Recommended)
+
+```bash
+# In your .env file
+DASHSCOPE_API_KEY=your-dashscope-api-key-here
+PROJECT_ROOT=/Users/yourusername/Project/valuecell
+```
+
+That's it! All agents will work with DashScope's Qwen models.
+
+### Alternative Setup (OpenRouter)
 
 ```bash
 # In your .env file
@@ -18,7 +28,7 @@ OPENROUTER_API_KEY=sk-or-v1-your-key-here
 PROJECT_ROOT=/Users/yourusername/Project/valuecell
 ```
 
-That's it! All agents will work with OpenRouter's default models.
+All agents will work with OpenRouter's default models.
 
 ## Core Configuration
 
@@ -36,7 +46,10 @@ LOG_LEVEL=INFO                       # DEBUG, INFO, WARNING, ERROR
 Setting a provider's API key enables all models from that provider.
 
 ```bash
-# OpenRouter (Recommended - unified API for multiple providers)
+# DashScope (Recommended - unified API for Qwen series models)
+DASHSCOPE_API_KEY=sk-...
+
+# OpenRouter (Alternative - unified API for multiple providers)
 OPENROUTER_API_KEY=sk-or-v1-...
 YOUR_SITE_URL=https://github.com/ValueCell-ai/valuecell
 YOUR_SITE_NAME=ValueCell
@@ -49,14 +62,8 @@ AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 AZURE_OPENAI_API_VERSION=2024-10-21
 
-# OpenAI Direct
-OPENAI_API_KEY=sk-...
-
-# Anthropic Claude
-ANTHROPIC_API_KEY=sk-ant-...
-
-# DeepSeek
-DEEPSEEK_API_KEY=sk-...
+# SiliconFlow
+SILICONFLOW_API_KEY=sk-...
 ```
 
 ## Agent-Specific Overrides
@@ -66,33 +73,33 @@ DEEPSEEK_API_KEY=sk-...
 Override model and parameters for the Research Agent:
 
 ```bash
-RESEARCH_AGENT_MODEL_ID=anthropic/claude-3.5-sonnet
-RESEARCH_AGENT_PROVIDER=openrouter
+RESEARCH_AGENT_MODEL_ID=qwen3-max
+RESEARCH_AGENT_PROVIDER=dashscope
 RESEARCH_AGENT_TEMPERATURE=0.8
 RESEARCH_AGENT_MAX_TOKENS=8192
-RESEARCH_AGENT_EMBEDDING_MODEL=text-embedding-3-small
+RESEARCH_AGENT_EMBEDDING_MODEL=text-embedding-v2
 RESEARCH_AGENT_LOG_LEVEL=DEBUG
 ```
 
 ### SEC Agent
 
 ```bash
-SEC_AGENT_MODEL_ID=google/gemini-2.5-flash
-SEC_AGENT_PROVIDER=openrouter
-SEC_AGENT_PARSER_MODEL=openai/gpt-4o-mini
+SEC_AGENT_MODEL_ID=qwen3-max
+SEC_AGENT_PROVIDER=dashscope
+SEC_AGENT_PARSER_MODEL=qwen3-max
 ```
 
 ### Trading Agent
 
 ```bash
-TRADING_AGENT_MODEL_ID=openai/gpt-4o
-TRADING_AGENT_PROVIDER=openrouter
+TRADING_AGENT_MODEL_ID=qwen3-max
+TRADING_AGENT_PROVIDER=dashscope
 ```
 
 ### Auto Trading Agent
 
 ```bash
-AUTO_TRADING_AGENT_PARSER_MODEL=openai/gpt-4o-mini
+AUTO_TRADING_AGENT_PARSER_MODEL=qwen3-max
 ```
 
 ## Third-Party Integration Configuration
@@ -119,7 +126,7 @@ TRADINGAGENTS_ONLINE_TOOLS=true
 ### AI-Hedge-Fund
 
 ```bash
-AI_HEDGE_FUND_PARSER_MODEL_ID=openai/gpt-4o-mini
+AI_HEDGE_FUND_PARSER_MODEL_ID=qwen3-max
 ```
 
 ## Advanced Configuration
@@ -131,7 +138,7 @@ ValueCell automatically detects which provider to use based on available API key
 ```bash
 # Auto-detection (default behavior)
 # Just set any provider's API key and it will be auto-selected
-# Priority: azure > openrouter > anthropic > google > deepseek
+# Priority: azure > dashscope > openrouter > anthropic > google > deepseek
 
 # Disable auto-detection if needed
 AUTO_DETECT_PROVIDER=false
@@ -140,7 +147,7 @@ AUTO_DETECT_PROVIDER=false
 PRIMARY_PROVIDER=openrouter
 
 # Override fallback chain
-FALLBACK_PROVIDERS=google,anthropic
+FALLBACK_PROVIDERS=openrouter,google
 ```
 
 ### Global Model Parameters

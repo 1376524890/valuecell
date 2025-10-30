@@ -14,8 +14,8 @@ enabled: true
 # Primary model is used for AI-enhanced trading signals and portfolio decisions
 models:
   primary:
-    model_id: "deepseek/deepseek-v3.1-terminus"
-    provider: "openrouter"  # Must explicitly specify provider (not null)
+    model_id: "qwen3-max"
+    provider: "dashscope"  # Must explicitly specify provider (not null)
     # Provider-specific model mappings for fallback
     provider_models:
       openrouter: "anthropic/claude-haiku-4.5"  # Fast and reasoning capable
@@ -39,4 +39,3 @@ trading:
   default_check_interval: 60
   max_symbols: 10
   max_concurrent_instances: 10
-

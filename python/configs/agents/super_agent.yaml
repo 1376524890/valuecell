@@ -20,13 +20,13 @@ enabled: true
 models:
   # Primary model for triage, reasoning, and query enrichment
   primary:
-    model_id: "anthropic/claude-haiku-4.5"
-    provider: "openrouter"  # Must explicitly specify provider (not null)
+    model_id: "qwen3-max"
+    provider: "dashscope"  # Must explicitly specify provider (not null)
     
     # Provider-specific model mappings for fallback
     # Used when primary provider fails and fallback is attempted
     provider_models:
-      siliconflow: "zai-org/GLM-4.6"  # Similar capability to Claude Haiku
+      openrouter: "anthropic/claude-haiku-4.5"  # Similar capability to Qwen3 Max
       google: "gemini-2.5-flash"  # Fast and efficient like Claude Haiku
 
 # Environment Variable Overrides
@@ -49,21 +49,29 @@ capabilities:
   web_crawl: true
   
   # Session management
-  session_management:
-    enabled: true
-    max_history_runs: 5
-    enable_summaries: true
-
-# Advanced Settings
-advanced:
-  # Debug mode (can be overridden by AGENT_DEBUG_MODE env var)
-  debug_mode: false
-
-  # Output format
-  markdown: false
+  session_management: true
   
-  # Context settings
-  add_datetime_to_context: true
-  add_history_to_context: true
-  read_chat_history: true
+  # Memory management
+  memory_management: true
+  
+  # Tool usage
+  tool_usage: true
 
+# Rate limiting configuration
+rate_limiting:
+  # Maximum number of requests per minute
+  max_requests_per_minute: 60
+  
+  # Burst limit (maximum concurrent requests)
+  burst_limit: 10
+
+# Retry configuration
+retry:
+  # Maximum number of retries
+  max_attempts: 3
+  
+  # Base delay between retries (in seconds)
+  base_delay: 1
+  
+  # Maximum delay between retries (in seconds)
+  max_delay: 10

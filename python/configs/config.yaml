@@ -10,7 +10,7 @@
 # Model Provider Configuration
 models:
   # Primary provider
-  primary_provider: "openrouter"
+  primary_provider: "dashscope"
   
   # Global default settings
   defaults:
@@ -19,6 +19,10 @@ models:
   
   # Provider registry
   providers:
+    dashscope:
+      config_file: "providers/dashscope.yaml"
+      api_key_env: "DASHSCOPE_API_KEY"
+    
     openrouter:
       config_file: "providers/openrouter.yaml"
       api_key_env: "OPENROUTER_API_KEY"
@@ -41,4 +45,3 @@ agents:
   
   auto_trading_agent:
     config_file: "agents/auto_trading_agent.yaml"
-
