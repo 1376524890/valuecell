@@ -167,12 +167,12 @@ class OpenRouterProvider(ModelProvider):
     """OpenRouter model provider"""
 
     def create_model(self, model_id: Optional[str] = None, **kwargs):
-        """Create OpenRouter model via agno"""
+        """Create OpenRouter model via openai"""
         try:
-            from agno.models.openrouter import OpenRouter
+            from openai import OpenAI
         except ImportError:
             raise ImportError(
-                "agno package not installed. Install with: pip install agno"
+                "openai package not installed. Install with: pip install openai"
             )
 
         # Use provided model_id or default
@@ -186,48 +186,67 @@ class OpenRouterProvider(ModelProvider):
 
         logger.info(f"Creating OpenRouter model: {model_id}")
 
-        return OpenRouter(
-            id=model_id,
+        client = OpenAI(
             api_key=self.config.api_key,
             base_url=self.config.base_url,
-            extra_headers=extra_headers if extra_headers else None,
-            temperature=params.get("temperature"),
-            max_tokens=params.get("max_tokens"),
-            top_p=params.get("top_p"),
-            frequency_penalty=params.get("frequency_penalty"),
-            presence_penalty=params.get("presence_penalty"),
+            default_headers=extra_headers if extra_headers else None,
         )
+        
+        # Return a lambda function that creates the completion when called
+        def model_func(messages, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            return client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=merged_kwargs.get("temperature"),
+                max_tokens=merged_kwargs.get("max_tokens"),
+                top_p=merged_kwargs.get("top_p"),
+                frequency_penalty=merged_kwargs.get("frequency_penalty"),
+                presence_penalty=merged_kwargs.get("presence_penalty"),
+            )
+        
+        return model_func
 
 
 class GoogleProvider(ModelProvider):
     """Google Gemini model provider"""
 
     def create_model(self, model_id: Optional[str] = None, **kwargs):
-        """Create Google Gemini model via agno"""
+        """Create Google Gemini model via openai compatible API"""
         try:
-            from agno.models.google import Gemini
+            from openai import OpenAI
         except ImportError:
             raise ImportError(
-                "agno package not installed. Install with: pip install agno"
+                "openai package not installed. Install with: pip install openai"
             )
 
         model_id = model_id or self.config.default_model
         params = {**self.config.parameters, **kwargs}
 
         logger.info(f"Creating Google Gemini model: {model_id}")
-
-        return Gemini(
-            id=model_id,
+        
+        client = OpenAI(
             api_key=self.config.api_key,
-            temperature=params.get("temperature"),
+            base_url=self.config.base_url,
         )
+
+        # Return a lambda function that creates the completion when called
+        def model_func(messages, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            return client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=merged_kwargs.get("temperature"),
+            )
+        
+        return model_func
 
     def create_embedder(self, model_id: Optional[str] = None, **kwargs):
         """Create embedder via Google Gemini"""
         try:
-            from agno.knowledge.embedder.google import GeminiEmbedder
+            from openai import OpenAI
         except ImportError:
-            raise ImportError("agno package not installed")
+            raise ImportError("openai package not installed")
 
         # Use provided model_id or default embedding model
         model_id = model_id or self.config.default_embedding_model
@@ -241,13 +260,28 @@ class GoogleProvider(ModelProvider):
         params = {**self.config.embedding_parameters, **kwargs}
 
         logger.info(f"Creating Google Gemini embedder: {model_id}")
-
-        return GeminiEmbedder(
-            id=model_id,
+        
+        client = OpenAI(
             api_key=self.config.api_key,
-            dimensions=params.get("dimensions", 3072),
-            task_type=params.get("task_type", "RETRIEVAL_DOCUMENT"),
+            base_url=self.config.base_url,
         )
+
+        # Return a lambda function that creates embeddings when called
+        def embedder_func(texts, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            if isinstance(texts, str):
+                texts = [texts]
+            
+            response = client.embeddings.create(
+                model=model_id,
+                input=texts,
+                dimensions=merged_kwargs.get("dimensions", 3072),
+            )
+            
+            # Return list of embeddings
+            return [item.embedding for item in response.data]
+        
+        return embedder_func
 
 
 class AzureProvider(ModelProvider):
@@ -256,8 +290,7 @@ class AzureProvider(ModelProvider):
     def create_model(self, model_id: Optional[str] = None, **kwargs):
         """Create Azure OpenAI model"""
         try:
-            # Try to import from agno first
-            from agno.models.azure import AzureOpenAI
+            from openai import AzureOpenAI
         except ImportError:
             raise ImportError("No Azure OpenAI library found")
 
@@ -268,14 +301,24 @@ class AzureProvider(ModelProvider):
 
         logger.info(f"Creating Azure OpenAI model: {model_id}")
 
-        return AzureOpenAI(
-            deployment_name=model_id,
+        client = AzureOpenAI(
+            azure_deployment=model_id,
             api_key=self.config.api_key,
             azure_endpoint=self.config.base_url,
             api_version=api_version,
-            temperature=params.get("temperature"),
-            max_tokens=params.get("max_tokens"),
         )
+        
+        # Return a lambda function that creates the completion when called
+        def model_func(messages, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            return client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=merged_kwargs.get("temperature"),
+                max_tokens=merged_kwargs.get("max_tokens"),
+            )
+        
+        return model_func
 
     def is_available(self) -> bool:
         """Azure needs both API key and endpoint"""
@@ -286,31 +329,46 @@ class SiliconFlowProvider(ModelProvider):
     """SiliconFlow model provider"""
 
     def create_model(self, model_id: Optional[str] = None, **kwargs):
-        """Create SiliconFlow model"""
+        """Create SiliconFlow model via openai"""
         try:
-            from agno.models.siliconflow import Siliconflow
+            from openai import OpenAI
         except ImportError:
-            raise ImportError("agno package not installed")
+            raise ImportError(
+                "openai package not installed. Install with: pip install openai"
+            )
 
+        # Use provided model_id or default
         model_id = model_id or self.config.default_model
+
+        # Merge parameters: provider defaults < kwargs
         params = {**self.config.parameters, **kwargs}
 
         logger.info(f"Creating SiliconFlow model: {model_id}")
 
-        return Siliconflow(
-            id=model_id,
+        client = OpenAI(
             api_key=self.config.api_key,
-            base_url=self.config.base_url,
-            temperature=params.get("temperature"),
-            max_tokens=params.get("max_tokens"),
+            base_url=self.config.base_url or "https://api.siliconflow.cn/v1",
         )
+        
+        # Return a lambda function that creates the completion when called
+        def model_func(messages, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            return client.chat.completions.create(
+                model=model_id,
+                messages=messages,
+                temperature=merged_kwargs.get("temperature"),
+                max_tokens=merged_kwargs.get("max_tokens"),
+                top_p=merged_kwargs.get("top_p"),
+            )
+        
+        return model_func
 
     def create_embedder(self, model_id: Optional[str] = None, **kwargs):
         """Create embedder via SiliconFlow (OpenAI-compatible)"""
         try:
-            from agno.knowledge.embedder.openai import OpenAIEmbedder
+            from openai import OpenAI
         except ImportError:
-            raise ImportError("agno package not installed")
+            raise ImportError("openai package not installed")
 
         # Use provided model_id or default embedding model
         model_id = model_id or self.config.default_embedding_model
@@ -325,13 +383,28 @@ class SiliconFlowProvider(ModelProvider):
 
         logger.info(f"Creating SiliconFlow embedder: {model_id}")
 
-        return OpenAIEmbedder(
-            id=model_id,
+        client = OpenAI(
             api_key=self.config.api_key,
-            base_url=self.config.base_url,
-            dimensions=params.get("dimensions", 1024),
-            encoding_format=params.get("encoding_format"),
+            base_url=self.config.base_url or "https://api.siliconflow.cn/v1",
         )
+        
+        # Return a lambda function that creates embeddings when called
+        def embedder_func(texts, **call_kwargs):
+            merged_kwargs = {**params, **call_kwargs}
+            if isinstance(texts, str):
+                texts = [texts]
+            
+            response = client.embeddings.create(
+                model=model_id,
+                input=texts,
+                dimensions=merged_kwargs.get("dimensions", 1536),
+                encoding_format=merged_kwargs.get("encoding_format", "float"),
+            )
+            
+            # Return list of embeddings
+            return [item.embedding for item in response.data]
+        
+        return embedder_func
 
 
 class ModelFactory:
