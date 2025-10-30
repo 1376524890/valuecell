@@ -28,6 +28,11 @@ from valuecell.utils.db import resolve_lancedb_uri
 # - Fall back to other providers if primary fails
 embedder = model_utils_mod.get_embedder_for_agent("research_agent")
 
+# Add dimensions attribute to the embedder function
+# From logs: params={'dimensions': 1568}
+# This is needed because LanceDb tries to access embedder.dimensions
+embedder.dimensions = 1568
+
 # Alternative usage examples:
 # embedder = get_embedder()  # Use default env key
 # embedder = get_embedder("EMBEDDER_MODEL_ID", dimensions=3072)  # Override dimensions
