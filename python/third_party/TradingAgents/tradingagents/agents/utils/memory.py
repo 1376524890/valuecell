@@ -7,10 +7,9 @@ from openai import OpenAI
 class FinancialSituationMemory:
     def __init__(self, name, config):
         self.embedding = config["EMBEDDER_MODEL_ID"]
-        self.client = OpenAI(base_url=config["EMBEDDER_BASE_URL"])
-        if "localhost" not in config["EMBEDDER_BASE_URL"]:
-            EMBEDDER_API_KEY = os.getenv("EMBEDDER_API_KEY") or os.getenv("OPENAI_API_KEY")
-            self.client = OpenAI(api_key=EMBEDDER_API_KEY, base_url=config["EMBEDDER_BASE_URL"])
+        # 使用DashScope的API密钥
+        API_KEY = os.getenv("OPENAI_COMPATIBLE_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("EMBEDDER_API_KEY")
+        self.client = OpenAI(api_key=API_KEY, base_url=config["EMBEDDER_BASE_URL"])
 
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         try:

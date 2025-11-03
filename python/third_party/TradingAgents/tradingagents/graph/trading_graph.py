@@ -58,19 +58,31 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
+        # 获取API密钥 - 优先使用DashScope兼容的API密钥
+        api_key = os.getenv("OPENAI_COMPATIBLE_API_KEY") or os.getenv("OPENAI_API_KEY")
+        
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            # 使用DashScope的配置，但保持provider名称为openai以兼容
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"],
+                api_key=api_key
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"],
+                api_key=api_key
+            )
         elif self.config["llm_provider"].lower() == "azure" or self.config["llm_provider"].lower() == "azure_openai":
             # Azure OpenAI configuration
             azure_endpoint = os.getenv("TRADINGAGENTS_BACKEND_URL")
-            azure_api_key = os.getenv("OPENAI_API_KEY")
+            azure_api_key = api_key  # 使用统一的API密钥变量
             azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
             
             if not azure_endpoint:
                 raise ValueError("TRADINGAGENTS_BACKEND_URL environment variable is required for Azure OpenAI provider")
             if not azure_api_key:
-                raise ValueError("OPENAI_API_KEY environment variable is required for Azure OpenAI provider")
+                raise ValueError("API key environment variable is required")
             
             # Ensure endpoint has correct format without trailing /openai/v1
             if azure_endpoint.endswith("/openai/v1"):
