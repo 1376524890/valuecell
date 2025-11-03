@@ -213,20 +213,15 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
-        if self.debug:
-            # Debug mode with tracing
-            trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
+        # Always use stream mode for real-time streaming to frontend
+        trace = []
+        for chunk in self.graph.stream(init_agent_state, **args):
+            if len(chunk["messages"]) > 0:
+                if self.debug:
                     chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                trace.append(chunk)
 
-            final_state = trace[-1]
-        else:
-            # Standard mode without tracing
-            final_state = self.graph.invoke(init_agent_state, **args)
+        final_state = trace[-1]
 
         # Store current state for reflection
         self.curr_state = final_state

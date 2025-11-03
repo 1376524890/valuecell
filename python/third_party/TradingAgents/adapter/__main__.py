@@ -344,16 +344,87 @@ class TradingAgents(BaseAgent):
 
             yield streaming.message_chunk("✅ **System initialized, starting analysis...**\n\n")
 
-            # Run the analysis
-            final_state, processed_decision = self._current_graph.propagate(
-                trading_request.ticker, 
-                trading_request.trade_date
-            )
-
-            # Stream the results
-            for result in self._stream_analysis_results(
-                trading_request, final_state, processed_decision
-            ):
+            # Create a generator to stream analysis in chunks
+            async def run_analysis_and_stream():
+                # Run the analysis - this now uses stream mode internally
+                final_state, processed_decision = self._current_graph.propagate(
+                    trading_request.ticker, 
+                    trading_request.trade_date
+                )
+                
+                # Stream each section immediately as it becomes available
+                # Market Analysis
+                if final_state.get("market_report"):
+                    yield streaming.message_chunk(f"📊 **Market analysis**\n{final_state['market_report']}\n\n")
+                    # Small delay to ensure streaming is visible
+                    await asyncio.sleep(0.1)
+                
+                # Sentiment Analysis
+                if final_state.get("sentiment_report"):
+                    yield streaming.message_chunk(f"😊 **Sentiment analysis**\n{final_state['sentiment_report']}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # News Analysis
+                if final_state.get("news_report"):
+                    yield streaming.message_chunk(f"📰 **News analysis**\n{final_state['news_report']}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # Fundamentals Analysis
+                if final_state.get("fundamentals_report"):
+                    yield streaming.message_chunk(f"📈 **Fundamentals analysis**\n{final_state['fundamentals_report']}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # Investment Debate
+                if final_state.get("investment_debate_state"):
+                    debate_content = "⚖️ **Investment debate**\n"
+                    debate_state = final_state["investment_debate_state"]
+                    if debate_state.get("bull_history"):
+                        debate_content += f"**Bull case**: {debate_state['bull_history']}\n"
+                    if debate_state.get("bear_history"):
+                        debate_content += f"**Bear case**: {debate_state['bear_history']}\n"
+                    if debate_state.get("judge_decision"):
+                        debate_content += f"**Judge decision**: {debate_state['judge_decision']}\n"
+                    yield streaming.message_chunk(debate_content + "\n")
+                    await asyncio.sleep(0.1)
+                
+                # Risk Analysis
+                if final_state.get("risk_debate_state"):
+                    risk_content = "⚠️ **Risk assessment**\n"
+                    risk_state = final_state["risk_debate_state"]
+                    if risk_state.get("risky_history"):
+                        risk_content += f"**Risk factors**: {risk_state['risky_history']}\n"
+                    if risk_state.get("safe_history"):
+                        risk_content += f"**Safety factors**: {risk_state['safe_history']}\n"
+                    if risk_state.get("judge_decision"):
+                        risk_content += f"**Risk evaluation**: {risk_state['judge_decision']}\n"
+                    yield streaming.message_chunk(risk_content + "\n")
+                    await asyncio.sleep(0.1)
+                
+                # Investment Plan
+                if final_state.get("investment_plan"):
+                    yield streaming.message_chunk(f"📋 **Final investment plan**\n{final_state['investment_plan']}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # Final Decision
+                if final_state.get("final_trade_decision"):
+                    yield streaming.message_chunk(f"🎯 **Final trade decision**\n{final_state['final_trade_decision']}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # Processed Signal
+                if processed_decision:
+                    yield streaming.message_chunk(f"🚦 **Processed trade signal**\n{processed_decision}\n\n")
+                    await asyncio.sleep(0.1)
+                
+                # Summary
+                summary_content = (f"✅ **Analysis completed**\n\n"
+                                f"Stock {trading_request.ticker} on {trading_request.trade_date} analysis completed.\n"
+                                f"Used analysts: {', '.join(trading_request.selected_analysts)}\n\n"
+                                f"If you need to re-analyze or analyze other stocks, please send a new query.")
+                yield streaming.message_chunk(summary_content)
+                yield streaming.done()
+            
+            # Stream the analysis results as they become available
+            async for result in run_analysis_and_stream():
                 yield result
 
         except Exception as e:
