@@ -76,6 +76,7 @@ export default defineConfig(async () => ({
     port: 1420,
     strictPort: true,
     host: '0.0.0.0', // 监听所有网络接口
+    allowedHosts: ['frp-now.com', '0.0.0.0'], // 允许的主机名
     hmr: {
         protocol: "ws",
         host: '0.0.0.0',
