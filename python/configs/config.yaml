@@ -10,7 +10,7 @@
 # Model Provider Configuration
 models:
   # Primary provider
-  primary_provider: "openrouter"
+  primary_provider: "openai-compatible"
   
   # Global default settings
   defaults:
@@ -54,4 +54,7 @@ agents:
   
   auto_trading_agent:
     config_file: "agents/auto_trading_agent.yaml"
+  
+  TradingAgents:
+    module: "third_party.TradingAgents.adapter.__main__.TradingAgents"
 

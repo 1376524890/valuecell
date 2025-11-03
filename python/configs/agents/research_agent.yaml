@@ -9,8 +9,8 @@ enabled: true
 models:
   # Primary model for reasoning and generation
   primary:
-    model_id: "google/gemini-2.5-flash"
-    provider: "openrouter"
+    model_id: "qwen3-max"
+    provider: "openai-compatible"
     # Provider-specific model mappings for fallback
     provider_models:
       siliconflow: "Qwen/Qwen3-235B-A22B-Thinking-2507"
@@ -22,8 +22,8 @@ models:
   # Embedding model for knowledge base
   # Note: If not specified, will auto-select from available providers
   embedding:
-    model_id: "Qwen/Qwen3-Embedding-4B"  # Optional, uses provider default
-    provider: "siliconflow"  # Must explicitly specify provider
+    model_id: "text-embedding-v4"  # Optional, uses provider default
+    provider: "openai-compatible"  # Must explicitly specify provider
     # Provider-specific embedding model mappings for fallback
     provider_models:
       google: "gemini-embedding-001"

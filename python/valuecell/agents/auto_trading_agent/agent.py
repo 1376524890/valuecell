@@ -457,7 +457,27 @@ class AutoTradingAgent(BaseAgent):
             """
 
             response = await self.parser_agent.arun(parse_prompt)
-            trading_request = response.content
+            
+            # Ensure we have a proper TradingRequest object
+            # Sometimes the model might return a string representation of JSON
+            if isinstance(response.content, dict):
+                trading_request = TradingRequest(**response.content)
+            else:
+                try:
+                    # Try to parse as JSON string
+                    import json
+                    content_str = str(response.content)
+                    # Remove any markdown code blocks or formatting
+                    if content_str.startswith('```'):
+                        content_str = content_str.split('```')[1].strip()
+                    if content_str.startswith('json'):
+                        content_str = content_str[4:].strip()
+                    trading_request_dict = json.loads(content_str)
+                    trading_request = TradingRequest(**trading_request_dict)
+                except (json.JSONDecodeError, TypeError, ValueError) as e:
+                    logger.error(f"Failed to convert response to TradingRequest: {e}")
+                    # Create a default TradingRequest with debug info
+                    raise ValueError(f"Could not parse trading configuration. Response format error: {str(e)}")
 
             logger.info(f"Parsed trading request: {trading_request}")
             return trading_request

@@ -18,8 +18,8 @@ enabled: true
 models:
   # Primary model for news analysis, summarization, and query processing
   primary:
-    model_id: "anthropic/claude-haiku-4.5"
-    provider: "openrouter"  # Must explicitly specify provider (not null)
+    model_id: "qwen3-max"
+    provider: "openai-compatible"  # Using configured openai-compatible provider
 
     # Provider-specific model mappings for fallback
     # Used when primary provider fails and fallback is attempted
@@ -34,8 +34,8 @@ models:
   # Web search model for real-time information gathering
   # Uses specialized models optimized for web search and real-time data
   search:
-    model_id: "perplexity/sonar"
-    provider: "openrouter"
+    model_id: "qwen3-max"
+    provider: "openai-compatible"
 
     # Provider-specific search model mappings
     provider_models:
