@@ -75,14 +75,12 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
+    host: '0.0.0.0', // 监听所有网络接口
+    hmr: {
+        protocol: "ws",
+        host: '0.0.0.0',
+        port: 1421,
+      }, // 确保 HMR 在监听所有接口时也能正常工作
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
