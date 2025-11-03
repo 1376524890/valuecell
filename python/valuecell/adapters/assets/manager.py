@@ -366,7 +366,8 @@ class AdapterManager:
             # Create prompt to generate possible ticker formats
             system_prompt = (
                 "You are a financial data expert that helps map search queries to "
-                "standardized ticker formats. Always respond with valid JSON arrays only."
+                "standardized ticker formats. Always respond with valid JSON arrays only. "
+                "Respond in JSON format."
             )
 
             user_prompt = f"""Given the user search query: "{query.query}"

@@ -63,7 +63,7 @@ class AIHedgeFundAgent(BaseAgent):
             f"Parsing query: {query}. Task ID: {task_id}, Session ID: {session_id}"
         )
         run_response = await self.agno_agent.arun(
-            f"Parse the following hedge fund analysis request and extract the parameters: {query}"
+            f"Parse the following hedge fund analysis request and extract the parameters: {query}\n\nRespond in JSON format."
         )
         hedge_fund_request = run_response.content
         if not isinstance(hedge_fund_request, HedgeFundRequest):

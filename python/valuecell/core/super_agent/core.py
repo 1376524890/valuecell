@@ -44,17 +44,24 @@ class SuperAgent:
 
     def __init__(self) -> None:
         model = model_utils_mod.get_model_for_agent("super_agent")
+        use_json_mode = model_utils_mod.model_should_use_json_mode(model)
+        
+        # 确保在使用JSON模式时，instructions中包含json字样
+        instructions = [SUPER_AGENT_INSTRUCTION]
+        if use_json_mode and "json" not in SUPER_AGENT_INSTRUCTION.lower():
+            instructions.insert(0, "Respond in JSON format.")
+            
         self.agent = Agent(
             model=model,
             # TODO: enable tools when needed
             # tools=[Crawl4aiTools()],
             markdown=False,
             debug_mode=agent_debug_mode_enabled(),
-            instructions=[SUPER_AGENT_INSTRUCTION],
+            instructions=instructions,
             # output format
             expected_output=SUPER_AGENT_EXPECTED_OUTPUT,
             output_schema=SuperAgentOutcome,
-            use_json_mode=model_utils_mod.model_should_use_json_mode(model),
+            use_json_mode=use_json_mode,
             # context
             db=InMemoryDb(),
             add_datetime_to_context=True,

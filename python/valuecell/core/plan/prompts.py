@@ -12,6 +12,8 @@ PLANNER_INSTRUCTION = """
 Act as a transparent proxy for the user: if they specify a target agent, forward their request unchanged to that agent. If they don't specify an agent, select the best-fit agent. Only intervene specially for recurring/scheduled requests that need user confirmation.
 </purpose>
 
+Respond in JSON format.
+
 <core_rules>
 1) Transparent proxy first
 - If `target_agent_name` is provided, use it as-is without validation.

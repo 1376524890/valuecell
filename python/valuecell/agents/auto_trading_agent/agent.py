@@ -24,6 +24,7 @@ from .constants import (
     DEFAULT_CHECK_INTERVAL,
     ENV_PARSER_MODEL_ID,
     ENV_SIGNAL_MODEL_ID,
+    DEFAULT_INITIAL_CAPITAL,
 )
 from .formatters import MessageFormatter
 from .models import (
@@ -434,11 +435,13 @@ class AutoTradingAgent(BaseAgent):
         """
         try:
             parse_prompt = f"""
-            Parse the following user query and extract auto trading configuration parameters:
+            Parse the following user query and extract auto trading configuration parameters into JSON format:
             
             User query: "{query}"
             
-            Please identify:
+            Respond in JSON format.
+            
+            Please identify the following parameters and return them as a valid JSON object:
             1. crypto_symbols: List of cryptocurrency symbols to trade (e.g., BTC-USD, ETH-USD, SOL-USD)
                - If user mentions "Bitcoin", extract as "BTC-USD"
                - If user mentions "Ethereum", extract as "ETH-USD"
@@ -448,12 +451,14 @@ class AutoTradingAgent(BaseAgent):
             3. use_ai_signals: Whether to use AI-enhanced signals (default: true)
             4. agent_model: Model ID for trading decisions (default: DEFAULT_AGENT_MODEL)
             
-            Examples:
+            Examples of valid JSON outputs:
             - "Trade Bitcoin and Ethereum with $50000" -> {{"crypto_symbols": ["BTC-USD", "ETH-USD"], "initial_capital": 50000, "use_ai_signals": true}}
             - "Start auto trading BTC-USD" -> {{"crypto_symbols": ["BTC-USD"], "initial_capital": 100000, "use_ai_signals": true}}
             - "Trade BTC with AI signals" -> {{"crypto_symbols": ["BTC-USD"], "initial_capital": 100000, "use_ai_signals": true}}
             - "Trade BTC with AI signals using DeepSeek model" -> {{"crypto_symbols": ["BTC-USD"], "initial_capital": 100000, "use_ai_signals": true, "agent_models": ["deepseek/deepseek-v3.1-terminus"]}}
             - "Trade Bitcoin, SOL, Eth and DOGE with 100000 capital, using x-ai/grok-4, deepseek/deepseek-v3.1-terminus model" -> {{"crypto_symbols": ["BTC-USD", "SOL-USD", "ETH-USD", "DOGE-USD"], "initial_capital": 100000, "use_ai_signals": true, "agent_models": ["x-ai/grok-4", "deepseek/deepseek-v3.1-terminus"]}}
+            
+            Important: Return only the JSON object without any additional text or explanation.
             """
 
             response = await self.parser_agent.arun(parse_prompt)
@@ -466,18 +471,53 @@ class AutoTradingAgent(BaseAgent):
                 try:
                     # Try to parse as JSON string
                     import json
+
                     content_str = str(response.content)
                     # Remove any markdown code blocks or formatting
                     if content_str.startswith('```'):
-                        content_str = content_str.split('```')[1].strip()
-                    if content_str.startswith('json'):
+                        parts = content_str.split('```')
+                        if len(parts) >= 2:
+                            content_str = parts[1].strip()
+                    # Some models may prefix with the word 'json' or similar - strip that
+                    if content_str.lower().startswith('json'):
                         content_str = content_str[4:].strip()
                     trading_request_dict = json.loads(content_str)
                     trading_request = TradingRequest(**trading_request_dict)
                 except (json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.error(f"Failed to convert response to TradingRequest: {e}")
-                    # Create a default TradingRequest with debug info
-                    raise ValueError(f"Could not parse trading configuration. Response format error: {str(e)}")
+                    # Fallback: try a simple heuristic parser from the raw query
+                    try:
+                        q = query.lower()
+                        symbols_map = {
+                            "bitcoin": "BTC-USD",
+                            "btc": "BTC-USD",
+                            "ethereum": "ETH-USD",
+                            "eth": "ETH-USD",
+                            "solana": "SOL-USD",
+                            "sol": "SOL-USD",
+                            "doge": "DOGE-USD",
+                            "dogecoin": "DOGE-USD",
+                            "litecoin": "LTC-USD",
+                            "ltc": "LTC-USD",
+                        }
+                        found = []
+                        for token, symbol in symbols_map.items():
+                            if token in q:
+                                if symbol not in found:
+                                    found.append(symbol)
+
+                        if found:
+                            trading_request = TradingRequest(
+                                crypto_symbols=found,
+                                initial_capital=DEFAULT_INITIAL_CAPITAL,
+                                use_ai_signals=False,
+                            )
+                            logger.info("Used fallback parser to create TradingRequest from query")
+                        else:
+                            # Nothing found - re-raise original parsing error
+                            raise ValueError(f"Could not parse trading configuration. Response format error: {str(e)}")
+                    except Exception:
+                        raise ValueError(f"Could not parse trading configuration. Response format error: {str(e)}")
 
             logger.info(f"Parsed trading request: {trading_request}")
             return trading_request

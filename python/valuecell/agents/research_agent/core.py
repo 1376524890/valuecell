@@ -33,9 +33,17 @@ class ResearchAgent(BaseAgent):
             fetch_ashare_filings,
             web_search,
         ]
+        model = model_utils_mod.get_model_for_agent("research_agent")
+        use_json_mode = model_utils_mod.model_should_use_json_mode(model)
+        
+        # 确保在使用JSON模式时，instructions中包含json字样
+        instructions = [KNOWLEDGE_AGENT_INSTRUCTION]
+        if use_json_mode and "json" not in KNOWLEDGE_AGENT_INSTRUCTION.lower():
+            instructions.insert(0, "Respond in JSON format.")
+            
         self.knowledge_research_agent = Agent(
-            model=model_utils_mod.get_model_for_agent("research_agent"),
-            instructions=[KNOWLEDGE_AGENT_INSTRUCTION],
+            model=model,
+            instructions=instructions,
             expected_output=KNOWLEDGE_AGENT_EXPECTED_OUTPUT,
             tools=tools,
             knowledge=knowledge,
@@ -47,6 +55,7 @@ class ResearchAgent(BaseAgent):
             num_history_runs=3,
             read_chat_history=True,
             enable_session_summaries=True,
+            use_json_mode=use_json_mode,
             # configuration
             debug_mode=agent_debug_mode_enabled(),
         )

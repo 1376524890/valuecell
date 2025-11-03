@@ -150,7 +150,10 @@ Based on these indicators, provide:
 4. Reasoning: Brief explanation (1-2 sentences)
 
 Format your response as JSON:
-{{"action": "BUY|SELL|HOLD", "type": "LONG|SHORT", "confidence": 0-100, "reasoning": "explanation"}}"""
+{{"action": "BUY|SELL|HOLD", "type": "LONG|SHORT", "confidence": 0-100, "reasoning": "explanation"}}
+
+Respond in JSON format.
+Respond in JSON format only, without extra text."""
 
             agent = Agent(model=self.llm_client, markdown=False)
             response = await agent.arun(prompt)

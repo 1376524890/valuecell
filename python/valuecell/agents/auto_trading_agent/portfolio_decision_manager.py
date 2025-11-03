@@ -477,6 +477,8 @@ class PortfolioDecisionManager:
                 "- Consider taking profits on winning positions",
                 "- Cut losses on losing positions if trend has reversed",
                 "- Ensure diversification and avoid over-concentration",
+                "- Respond in JSON format.",
+                "- Respond in JSON format only, without extra text.",
                 "",
             ]
         )
