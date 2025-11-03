@@ -202,8 +202,8 @@ class TradingAgentsGraph:
             ),
         }
 
-    def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date."""
+    async def propagate(self, company_name, trade_date):
+        """Run the trading agents graph for a company on a specific date and yield results in real-time."""
 
         self.ticker = company_name
 
@@ -213,24 +213,24 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
-        # Always use stream mode for real-time streaming to frontend
-        trace = []
-        for chunk in self.graph.stream(init_agent_state, **args):
+        # Stream results in real-time
+        current_state = None
+        async for chunk in self.graph.astream(init_agent_state, **args):
             if len(chunk["messages"]) > 0:
                 if self.debug:
                     chunk["messages"][-1].pretty_print()
-                trace.append(chunk)
+                current_state = chunk
+                # Yield intermediate results
+                yield chunk
 
-        final_state = trace[-1]
+        # Store final state for reflection
+        self.curr_state = current_state
 
-        # Store current state for reflection
-        self.curr_state = final_state
-
-        # Log state
-        self._log_state(trade_date, final_state)
-
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # Log final state
+        if current_state:
+            self._log_state(trade_date, current_state)
+            # Yield final processed decision
+            yield {"final_decision": self.process_signal(current_state.get("final_trade_decision", ""))}
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""

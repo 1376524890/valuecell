@@ -346,32 +346,38 @@ class TradingAgents(BaseAgent):
 
             # Create a generator to stream analysis in chunks
             async def run_analysis_and_stream():
-                # Run the analysis - this now uses stream mode internally
-                final_state, processed_decision = self._current_graph.propagate(
-                    trading_request.ticker, 
+                # Run the analysis with real-time streaming
+                async for state_chunk in self._current_graph.propagate(
+                    trading_request.ticker,
                     trading_request.trade_date
-                )
-                
-                # Stream each section immediately as it becomes available
-                # Market Analysis
-                if final_state.get("market_report"):
-                    yield streaming.message_chunk(f"📊 **Market analysis**\n{final_state['market_report']}\n\n")
-                    # Small delay to ensure streaming is visible
-                    await asyncio.sleep(0.1)
-                
-                # Sentiment Analysis
-                if final_state.get("sentiment_report"):
-                    yield streaming.message_chunk(f"😊 **Sentiment analysis**\n{final_state['sentiment_report']}\n\n")
-                    await asyncio.sleep(0.1)
-                
-                # News Analysis
-                if final_state.get("news_report"):
-                    yield streaming.message_chunk(f"📰 **News analysis**\n{final_state['news_report']}\n\n")
-                    await asyncio.sleep(0.1)
-                
-                # Fundamentals Analysis
-                if final_state.get("fundamentals_report"):
-                    yield streaming.message_chunk(f"📈 **Fundamentals analysis**\n{final_state['fundamentals_report']}\n\n")
+                ):
+                    # Handle final decision separately
+                    if "final_decision" in state_chunk:
+                        processed_decision = state_chunk["final_decision"]
+                        continue
+                    
+                    # Stream analysis results in real-time
+                    messages = state_chunk.get("messages", [])
+                    if messages:
+                        latest_msg = messages[-1]
+                        
+                        # Extract and stream content based on message type
+                        content = latest_msg.content if hasattr(latest_msg, "content") else str(latest_msg)
+                        
+                        # Identify content type and format accordingly
+                        if "market" in content.lower():
+                            yield streaming.message_chunk(f"� **Market analysis**\n{content}\n\n")
+                        elif "sentiment" in content.lower():
+                            yield streaming.message_chunk(f"😊 **Sentiment analysis**\n{content}\n\n")
+                        elif "news" in content.lower():
+                            yield streaming.message_chunk(f"📰 **News analysis**\n{content}\n\n")
+                        elif "fundamental" in content.lower():
+                            yield streaming.message_chunk(f"📈 **Fundamentals analysis**\n{content}\n\n")
+                        else:
+                            yield streaming.message_chunk(f"{content}\n\n")
+                        
+                        # Small delay to ensure smooth streaming
+                        await asyncio.sleep(0.1)
                     await asyncio.sleep(0.1)
                 
                 # Investment Debate
