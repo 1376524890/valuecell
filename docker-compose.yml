@@ -1,0 +1,19 @@
+services:
+  valuecell:
+    build: .
+    container_name: valuecell
+    ports:
+      - "1420:1420"  # 前端端口
+      - "8002:8000"  # 后端端口 (修改为8002以避免端口冲突)
+    volumes:
+      - ./logs:/app/logs
+      - ./lancedb:/app/lancedb
+      - ./valuecell.db:/app/valuecell.db
+      - ./.knowledgebase:/app/.knowledgebase
+      - ./.env:/app/.env
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - NODE_ENV=development
+    restart: unless-stopped
+    command: ["bash", "start.sh"]
