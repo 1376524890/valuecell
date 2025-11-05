@@ -304,10 +304,10 @@ class TradingAgents(BaseAgent):
                 return
             
             if final_state.get("current_step") == "error" or not final_state.get("parsed_request"):
-                error_content = (f"❌ Unable to parse query: {query}\n\nPlease try similar format:\n"
-                               f"- 'Analyze AAPL stock'\n"
-                               f"- 'Use all analysts to analyze NVDA'\n"
-                               f"- 'Use GPT-4 to analyze TSLA, date 2024-01-15'\n"
+                error_content = (f"❌ Unable to parse query: {query}\n\nPlease try similar format:\n"  
+                               f"- 'Analyze AAPL stock'\n"  
+                               f"- 'Use all analysts to analyze NVDA'\n"  
+                               f"- 'Use GPT-4 to analyze TSLA, date 2024-01-15'\n"  
                                f"- 'What are the available stock codes?'\n")
                 yield streaming.message_chunk(error_content)
                 yield streaming.done()
@@ -344,24 +344,132 @@ class TradingAgents(BaseAgent):
 
             yield streaming.message_chunk("✅ **System initialized, starting analysis...**\n\n")
 
-            # Run the analysis
-            final_state, processed_decision = self._current_graph.propagate(
+            # Use streaming version of propagation to get real-time updates
+            async for result in self._stream_analysis_with_real_time_updates(
+                trading_request, 
                 trading_request.ticker, 
                 trading_request.trade_date
-            )
-
-            # Stream the results
-            for result in self._stream_analysis_results(
-                trading_request, final_state, processed_decision
             ):
                 yield result
 
         except Exception as e:
             logger.error(f"Error in trading analysis: {e}", exc_info=True)
-            error_content = (f"❌ **Error in analysis process**: {str(e)}\n\n"
+            error_content = (f"❌ **Error in analysis process**: {str(e)}\n\n"  
                            f"Please check parameters and try again. If you need help, please enter 'help' or 'help'.")
             yield streaming.message_chunk(error_content)
             yield streaming.done()
+            
+    async def _stream_analysis_with_real_time_updates(
+        self, trading_request: TradingRequest, ticker: str, trade_date: str
+    ) -> AsyncGenerator[StreamResponse, None]:
+        """Stream analysis with real-time updates for each completed phase"""
+        # Initialize state for the graph
+        init_agent_state = self._current_graph.propagator.create_initial_state(
+            ticker, trade_date
+        )
+        args = self._current_graph.propagator.get_graph_args()
+        
+        # Track the state as we go
+        current_state = init_agent_state.copy()
+        reports_sent = set()
+        
+        # Use stream to get updates incrementally
+        if self._current_graph.debug:
+            # Debug mode with tracing
+            trace = []
+            for chunk in self._current_graph.graph.stream(current_state, **args):
+                chunk["messages"][-1].pretty_print() if chunk["messages"] else None
+                trace.append(chunk)
+                # Update current state
+                current_state = {**current_state, **chunk}
+                # Check and send any new reports
+                async for report in self._check_and_send_new_reports(current_state, reports_sent):
+                    yield report
+            final_state = trace[-1]
+        else:
+            # Standard mode with incremental updates
+            final_state = None
+            # First await the to_thread call to get the list of chunks
+            chunks = await asyncio.to_thread(
+                lambda: list(self._current_graph.graph.stream(current_state, **args))
+            )
+            # Then iterate through the chunks
+            for chunk in chunks:
+                # Update current state
+                current_state = {**current_state, **chunk}
+                # Check and send any new reports
+                async for report in self._check_and_send_new_reports(current_state, reports_sent):
+                    yield report
+                final_state = chunk
+        
+        # Store final state
+        self._current_graph.curr_state = final_state
+        self._current_graph._log_state(trade_date, final_state)
+        
+        # Process final signal
+        processed_decision = self._current_graph.process_signal(final_state["final_trade_decision"])
+        
+        # Send any remaining reports and final decision
+        for result in self._stream_final_results(trading_request, final_state, processed_decision):
+            yield result
+    
+    async def _check_and_send_new_reports(self, state: Dict, reports_sent: set):
+        """Check for new reports in the state and send them if not already sent"""
+        # Define report types and their keys
+        report_types = {
+            "market_report": "Market analysis report",
+            "sentiment_report": "Sentiment analysis report",
+            "news_report": "News analysis report",
+            "fundamentals_report": "Fundamentals analysis report"
+        }
+        
+        # Check each report type
+        for report_key, report_title in report_types.items():
+            if report_key in state and state[report_key] and report_key not in reports_sent:
+                # Send the report
+                yield streaming.message_chunk(f"📈 **{report_title}**\n")
+                report_data = ReportComponentData(
+                    title=report_title,
+                    data=state[report_key],
+                    url=None,
+                    create_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                )
+                yield streaming.component_generator(report_data.model_dump_json(), ComponentType.REPORT)
+                reports_sent.add(report_key)
+    
+    def _stream_final_results(self, request: TradingRequest, final_state: Dict, processed_decision: str):
+        """Stream the final results after all analysis phases are complete"""
+        # Investment Debate Results
+        if final_state.get("investment_debate_state", {}).get("judge_decision"):
+            yield streaming.message_chunk(f"⚖️ **Investment debate results**\n{final_state['investment_debate_state']['judge_decision']}\n\n")
+
+        # Trader Decision
+        if final_state.get("trader_investment_plan"):
+            yield streaming.message_chunk(f"💼 **Trader investment plan**\n{final_state['trader_investment_plan']}\n\n")
+
+        # Risk Management
+        if final_state.get("risk_debate_state", {}).get("judge_decision"):
+            yield streaming.message_chunk(f"⚠️ **Risk management assessment**\n{final_state['risk_debate_state']['judge_decision']}\n\n")
+
+        # Final Investment Plan
+        if final_state.get("investment_plan"):
+            yield streaming.message_chunk(f"📋 **Final investment plan**\n{final_state['investment_plan']}\n\n")
+
+        # Final Decision
+        if final_state.get("final_trade_decision"):
+            yield streaming.message_chunk(f"🎯 **Final trade decision**\n{final_state['final_trade_decision']}\n\n")
+
+        # Processed Signal
+        if processed_decision:
+            yield streaming.message_chunk(f"🚦 **Processed trade signal**\n{processed_decision}\n\n")
+
+        # Summary
+        summary_content = (f"✅ **Analysis completed**\n\n"
+                          f"Stock {request.ticker} on {request.trade_date} analysis completed.\n"
+                          f"Used analysts: {', '.join(request.selected_analysts)}\n\n"
+                          f"If you need to re-analyze or analyze other stocks, please send a new query.")
+        yield streaming.message_chunk(summary_content)
+        yield streaming.done()
 
     def _rule_based_parse(self, query: str) -> dict:
         """Rule-based query parsing to extract trading parameters"""
